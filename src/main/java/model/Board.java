@@ -2,17 +2,36 @@ package model;
 
 import static model.Player.O;
 import static model.Player.X;
+import model.rules.GameRule;
 
 public class Board {
 
-    private Cell[][] cells = new Cell[3][3];
+    private int width;
+    private int height;
+    private Cell[][] cells;
+
+    private int winningLength ;
 
     private Player winner;
     private GameState state;
     private Player currentTurn;
-    public enum GameState { IN_PROGRESS, FINISHED };
+    private GameRule gameRule;
 
-    public Board() {
+
+
+
+    public Board(int width, int height, int winningLength, GameRule gameRule) {
+        if (width < 1 || height < 1) {
+            throw new IllegalArgumentException("Width and height must be greater than 0");
+        }
+        if (winningLength < 1 || winningLength > Math.max(width, height)) {
+            throw new IllegalArgumentException("Winning length must be greater than 0 and less than or equal to the maximum of width and height");
+        }
+        this.width = width;
+        this.height = height;
+        this.winningLength = winningLength;
+        this.cells = new Cell[height][width];
+        this.gameRule = gameRule;
         restart();
     }
 
@@ -24,8 +43,9 @@ public class Board {
     }
 
     public void mark(int row, int col) {
-        if (isValid(row, col)) {
+        if (gameRule.isValid(currentTurn, this, row, col)) {
             cells[row][col].setValue(currentTurn);
+            cells[row][col].setCategory(Category.DEFAULT);
 
             if (isWinningMoveByPlayer(currentTurn, row, col)) {
                 setInFinishedMode();
@@ -77,48 +97,85 @@ public class Board {
     }
 
     private void clearCells() {
-        for (int i = 0; i < 3; i++) {
-            for (int j = 0; j < 3; j++) {
+        for (int i = 0; i < height; i++) {
+            for (int j = 0; j < width; j++) {
                 cells[i][j] = new Cell();
             }
         }
     }
 
-    private boolean isValid(int row, int col) {
-        if (state == GameState.FINISHED) {
-            return false;
-        } else if (isOutOfBounds(row) || isOutOfBounds(col)) {
-            return false;
-        } else if (isCellValueAlreadySet(row, col)) {
-            return false;
-        } else {
-            return true;
-        }
+
+    public boolean isOutOfBounds(int col, int row) {
+        return col < 0 || col > width - 1 || row < 0 || row > height - 1;
     }
 
-    private boolean isOutOfBounds(int idx) {
-        return idx < 0 || idx > 2;
-    }
-
-    private boolean isCellValueAlreadySet(int row, int col) {
+    public boolean isCellValueAlreadySet(int row, int col) {
         return cells[row][col].getValue() != null;
     }
 
     public boolean isWinningMoveByPlayer(Player player, int currentRow, int currentCol) {
-        return (cells[currentRow][0].getValue() == player
-                && cells[currentRow][1].getValue() == player
-                && cells[currentRow][2].getValue() == player
-                || cells[0][currentCol].getValue() == player
-                && cells[1][currentCol].getValue() == player
-                && cells[2][currentCol].getValue() == player
-                || currentRow == currentCol
-                && cells[0][0].getValue() == player
-                && cells[1][1].getValue() == player
-                && cells[2][2].getValue() == player
-                || currentRow + currentCol == 2
-                && cells[0][2].getValue() == player
-                && cells[1][1].getValue() == player
-                && cells[2][0].getValue() == player);
+        Category category = cells[currentRow][currentCol].getCategory();
+        boolean isWinningRow = isWinningMoveHorizontal(player, category, currentRow);
+        boolean isWinningCol = isWinningMoveVertical(player, category, currentCol);
+        boolean isWinningMoveDiagonal1 = isWinningMoveDiagonal1(player, category, currentRow, currentCol);
+        boolean isWinningMoveDiagonal2 = isWinningMoveDiagonal2(player, category, currentRow, currentCol);
+
+
+        return isWinningRow || isWinningCol || isWinningMoveDiagonal1 || isWinningMoveDiagonal2;
+    }
+
+    private boolean isWinningMoveHorizontal(Player player, Category category, int currentRow) {
+        int length=0;
+        for (int col = 0; col < width; col++) {
+
+            length = isSamePiece(cells[currentRow][col], player, category) ? length + 1 : 0;
+            
+            if (length == winningLength) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean isWinningMoveVertical(Player player, Category category, int currentCol) {
+        int length=0;
+        for (int row = 0; row < height; row++) {
+            length = isSamePiece(cells[row][currentCol], player, category) ? length + 1 : 0;
+            if (length == winningLength) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean isWinningMoveDiagonal1(Player player, Category category, int currentRow, int currentCol) {
+        int length=0;
+        if (currentRow == currentCol) {
+            for (int i = 0; i < width; i++) {
+                length = isSamePiece(cells[i][i], player, category) ? length + 1 : 0;
+                if (length == winningLength) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+    private boolean isWinningMoveDiagonal2(Player player, Category category, int currentRow, int currentCol) {
+        int length=0;
+        if (currentRow + currentCol == width - 1) {
+            for (int i = 0; i < width; i++) {
+                length = isSamePiece(cells[i][width - 1 - i], player, category) ? length + 1 : 0;
+                if (length == winningLength) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private boolean isSamePiece(Cell cell, Player player, Category category) {
+        return cell.getValue() == player && cell.getCategory() == category;
     }
 
     private void flipCurrentTurn() {

@@ -1,5 +1,8 @@
 package model;
 
+import model.rules.GameRule;
+import model.rules.TicTacToeRule;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -10,7 +13,8 @@ public class BoardTest {
 
     @BeforeEach
     public void setUp() {
-        board = new Board();
+        GameRule rule = new TicTacToeRule();
+        board = new Board(3,4,3, rule);
     }
 
     @Test
@@ -19,6 +23,7 @@ public class BoardTest {
         Player turn = board.getCurrentTurn();
         Player value = board.getCell(0, 0).getValue();
         assertEquals(Player.X, value);
+        assertEquals(Category.DEFAULT, board.getCell(0, 0).getCategory());
         assertEquals(Player.O, turn);
     }
 
@@ -59,7 +64,7 @@ public class BoardTest {
 
     @Test
     public void testMarkGameNotInProgress() {
-        board.setState(Board.GameState.FINISHED);
+        board.setState(GameState.FINISHED);
         Player turnBefore = board.getCurrentTurn();
         board.mark(0, 0); // X tries to play while the game is finished
         Player turnAfter = board.getCurrentTurn();
